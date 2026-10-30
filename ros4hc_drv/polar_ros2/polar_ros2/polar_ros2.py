@@ -32,6 +32,7 @@ class PolarConnector(Node):
         self.publish_hr = self.get_parameter('publish_hr').get_parameter_value().bool_value
         self.publish_ecg = self.get_parameter('publish_ecg').get_parameter_value().bool_value
         self.bluetooth_adapter = self.get_parameter('bluetooth_adapter').get_parameter_value().string_value
+        self.bluetooth_address = self.get_parameter('bluetooth_address').get_parameter_value().string_value
 
         try:
             loop_0 = asyncio.get_event_loop()
