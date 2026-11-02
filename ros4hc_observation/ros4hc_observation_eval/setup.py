@@ -9,9 +9,10 @@ setup(
     ],
     install_requires=['setuptools'], zip_safe=True,
     maintainer='ROS4HC contributors', maintainer_email='kupper.lucas@gmail.com',
-    description='Phase 4A research evaluation of Observation semantics and preservation.',
+    description='Observationの意味情報・保持・処理コストを調べる研究評価。',
     license='GPL-3.0-or-later', tests_require=['pytest'],
     entry_points={'console_scripts': [
+        'observation_eval_benchmark = ros4hc_observation_eval.benchmark:main',
         'observation_eval_demo = ros4hc_observation_eval.demo:main',
     ]},
 )
