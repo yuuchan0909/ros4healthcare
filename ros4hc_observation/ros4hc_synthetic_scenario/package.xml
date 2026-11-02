@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<package format="3"><name>ros4hc_synthetic_scenario</name><version>0.1.0</version>
+<description>Phase 5A: 24時間の合成活動シナリオ評価データ。</description>
+<maintainer email="kupper.lucas@gmail.com">ROS4HC contributors</maintainer>
+<license>GPL-3.0-or-later</license><buildtool_depend>ament_python</buildtool_depend>
+<test_depend>python3-pytest</test_depend><export><build_type>ament_python</build_type></export></package>

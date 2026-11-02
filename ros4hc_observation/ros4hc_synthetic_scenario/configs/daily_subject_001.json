@@ -1,0 +1,111 @@
+{
+  "説明": "単一人物の研究用fixture。生理学的モデルではありません。時刻は固定UTCの合成時刻です。",
+  "seed": 42,
+  "subject_id": "subject_001",
+  "start_time": "2026-01-01T00:00:00+00:00",
+  "window_minutes": 5,
+  "duration_minutes": 1440,
+  "hr": {
+    "bounds": [
+      40,
+      180
+    ],
+    "jitter": 2,
+    "spread": 4,
+    "recovery_start": 112,
+    "recovery_step": 7,
+    "baselines": {
+      "low_activity": 60,
+      "light_activity": 76,
+      "walking_like_activity": 96,
+      "high_activity": 138
+    }
+  },
+  "activity": {
+    "bounds": [
+      0,
+      2
+    ],
+    "jitter": 0.015,
+    "std_ratio": 0.2,
+    "baselines": {
+      "low_activity": 0.04,
+      "light_activity": 0.2,
+      "walking_like_activity": 0.65,
+      "high_activity": 1.3,
+      "post_activity_recovery": 0.08
+    }
+  },
+  "schedule": [
+    {
+      "start_minute": 0,
+      "end_minute": 420,
+      "state": "low_activity"
+    },
+    {
+      "start_minute": 420,
+      "end_minute": 450,
+      "state": "low_activity"
+    },
+    {
+      "start_minute": 450,
+      "end_minute": 510,
+      "state": "light_activity"
+    },
+    {
+      "start_minute": 510,
+      "end_minute": 540,
+      "state": "walking_like_activity"
+    },
+    {
+      "start_minute": 540,
+      "end_minute": 720,
+      "state": "low_activity"
+    },
+    {
+      "start_minute": 720,
+      "end_minute": 780,
+      "state": "light_activity"
+    },
+    {
+      "start_minute": 780,
+      "end_minute": 990,
+      "state": "low_activity"
+    },
+    {
+      "start_minute": 990,
+      "end_minute": 1020,
+      "state": "walking_like_activity"
+    },
+    {
+      "start_minute": 1020,
+      "end_minute": 1050,
+      "state": "high_activity"
+    },
+    {
+      "start_minute": 1050,
+      "end_minute": 1080,
+      "state": "post_activity_recovery"
+    },
+    {
+      "start_minute": 1080,
+      "end_minute": 1200,
+      "state": "light_activity"
+    },
+    {
+      "start_minute": 1200,
+      "end_minute": 1320,
+      "state": "low_activity"
+    },
+    {
+      "start_minute": 1320,
+      "end_minute": 1410,
+      "state": "light_activity"
+    },
+    {
+      "start_minute": 1410,
+      "end_minute": 1440,
+      "state": "low_activity"
+    }
+  ]
+}
