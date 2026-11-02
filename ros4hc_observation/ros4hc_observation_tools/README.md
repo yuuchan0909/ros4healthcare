@@ -155,3 +155,92 @@ exercise zero/nonzero hr_quality and zero/negative HR without assigning validity
 Missing generated messages on a ROS host cause failure rather than silent skips.
 
 No baseline, trend, context, state interpretation, RAG or LLM processing is added.
+
+## v0.1 to v0.2 scalar bridge
+
+`health_observation_v02_bridge` adds this migration path alongside the existing
+v0.1 consumers. The Polar driver and Polar HR adapter are unchanged:
+
+```text
+/health_observations (HealthObservation)
+  -> health_observation_v02_bridge
+  -> /scalar_observations (ScalarObservation)
+```
+
+`v02_bridge_mapping.py` provides ROS-independent `map_health_observation` and
+conversion to the generated ScalarObservation. The node subscribes/publishes
+with queue depth 10 and validates the generated output using
+`model_v02.validate_scalar` before publishing. Invalid observations produce a
+warning, are dropped, and do not stop the node. Inputs are never repaired.
+Only `input_topic` and `output_topic` are added as parameters; both are read-only
+startup parameters with the defaults above.
+
+| v0.2 output | v0.1 input / policy |
+| --- | --- |
+| metadata.observation_id | Fresh UUID4 per input callback |
+| metadata.subject_id / session_id / observation_type | subject_id / session_id / observation_type |
+| metadata.unit / unit_status | unit / unit_status, unchanged |
+| value | value, including NaN |
+| metadata.observation_time.stamp | observation_time, exact sec/nanosec |
+| metadata.observation_time.semantics | time_semantics |
+| metadata.observation_time.clock_domain / event_source | Empty strings; no inference |
+| metadata.additional_times | Empty sequence (ROS message: `[]`) |
+| metadata.source.device_type / device_id | source_device_type / source_device_id |
+| metadata.source.topic / message_type / field_path | source_topic / source_message_type / source_field |
+| metadata.source.node | Empty string; never the bridge node |
+| metadata.data_level | data_level, unchanged |
+| metadata.quality.validity | validity, unchanged |
+| metadata.quality.quality_available / quality_value / quality_scale | quality_available / quality_value / quality_scale, including unknown/NaN |
+
+The v0.2 schema itself does not require UUID format; this bridge implementation
+uses UUID4 (`str(uuid.uuid4())`). The validator checks nonempty IDs without a
+UUID-format requirement. Migration does not change the observation processing
+level or original provenance, and adds no callback timestamp.
+
+### Bridge verification
+
+The bridge adds four ROS-independent mapping tests and two ROS integration tests.
+The complete tools suite now discovers 43 tests (the existing 37 plus six).
+On the development Mac, `python3 -m unittest discover -s test -v` passed 33 tests
+with 10 ROS-dependent skips, zero errors and zero failures. `pytest` is not
+installed on that host. ROS message generation and DDS integration remain to be
+verified on Ubuntu 22.04 / ROS 2 Humble. Require 43 tools tests and no errors,
+failures or skips there. Use the three-package build and colcon test commands
+above; the current counts supersede the older adapter-only counts in this file.
+
+The integration tests cover default topics, startup parameter overrides, DDS
+input/output, exact timestamps, all metadata, nonempty IDs, validator success,
+NaN delivery, invalid input rejection with warning, and continued publishing.
+Generated interfaces missing on a ROS host fail rather than skip.
+
+### Real Polar H10 check
+
+Keep the working Polar driver running with its existing configuration and source
+the same Humble/workspace environment in each terminal. If the existing Polar
+adapter is already running, keep that instance. Otherwise start it:
+
+```bash
+ros2 run ros4hc_observation_tools polar_hr_adapter --ros-args \
+  -p subject_id:=participant_01 -p session_id:=session_01
+```
+
+Start the bridge in another terminal:
+
+```bash
+ros2 run ros4hc_observation_tools health_observation_v02_bridge
+# Optional startup topic overrides:
+# ros2 run ros4hc_observation_tools health_observation_v02_bridge --ros-args \
+#   -p input_topic:=/health_observations -p output_topic:=/scalar_observations
+```
+
+Observe both streams in separate terminals:
+
+```bash
+ros2 topic echo /health_observations ros4hc_observation_msgs/msg/HealthObservation
+ros2 topic echo /scalar_observations ros4hc_observation_msgs/msg/ScalarObservation
+```
+
+Match corresponding samples by original timestamp and value. Confirm the copied
+metadata, original Polar provenance, unchanged data_level/validity, empty new
+provenance/time fields, no additional times, and nonempty observation_id. Existing
+v0.1 consumers can continue subscribing to /health_observations.

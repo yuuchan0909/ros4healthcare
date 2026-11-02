@@ -19,6 +19,7 @@ setup(
     entry_points={'console_scripts': [
         'synthetic_hr = ros4hc_observation_tools.synthetic_hr:main',
         'observation_validator = ros4hc_observation_tools.validator:main',
+        'health_observation_v02_bridge = ros4hc_observation_tools.health_observation_v02_bridge:main',
         'polar_hr_adapter = ros4hc_observation_tools.polar_hr_adapter:main',
     ]},
 )
