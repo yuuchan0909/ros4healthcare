@@ -312,3 +312,7 @@ bugs and device operation remain outside this MVP; no driver repairs are include
 ## License
 
 New files follow the repository's GPL-3.0-or-later license; see `LICENSE`.
+## v0.2 Phase 1
+
+The additive scalar/vector contracts are documented in [README_v02.md](README_v02.md).
+Existing HealthObservation v0.1 interfaces and runtime paths below remain unchanged.

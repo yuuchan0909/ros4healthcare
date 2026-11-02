@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>ros4hc_observation_tools</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>Synthetic scalar observations and structural validation for ROS4HC.</description>
   <maintainer email="kupper.lucas@gmail.com">ROS4HC contributors</maintainer>
   <license>GPL-3.0-or-later</license>
