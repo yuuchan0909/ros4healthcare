@@ -17,6 +17,8 @@ setup(
     license='GPL-3.0-or-later',
     tests_require=['pytest'],
     entry_points={'console_scripts': [
+        'polar_acc_adapter = ros4hc_observation_tools.polar_acc_adapter:main',
+        'synthetic_polar_acc = ros4hc_observation_tools.synthetic_polar_acc:main',
         'synthetic_hr = ros4hc_observation_tools.synthetic_hr:main',
         'observation_validator = ros4hc_observation_tools.validator:main',
         'health_observation_v02_bridge = ros4hc_observation_tools.health_observation_v02_bridge:main',
