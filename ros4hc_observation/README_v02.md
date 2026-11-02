@@ -1,11 +1,12 @@
-# Observation v0.2 — Phase 1
+# Observation v0.2 — Phase 1 and Phase 2
 
-Phase 1 adds common metadata, ScalarObservation, VectorObservation and pure
-structural validators. HealthObservation v0.1, its enum numbers, topics,
-Polar HR adapter and validator remain unchanged. Package version 0.2.0 adds
-new type names; it does not replace the v0.1 wire schema. Existing entry points
-remain v0.1. No v0.2 ROS node, acceleration adapter, ReferenceObservation,
-resolver, provenance storage or DerivedFeature message is implemented here.
+Phase 1 provides common metadata, ScalarObservation, VectorObservation and pure
+structural validators. Phase 2 adds ReferenceDescriptor, ReferenceObservation,
+pure reference validators and a process-local in-memory reference fixture.
+HealthObservation v0.1, existing interfaces, enum numbers, drivers, adapters and
+bridge are unchanged by Phase 2. The implemented Polar HR/ACC paths and their
+execution instructions are described in `ros4hc_observation_tools/README.md`.
+No production storage/resolver or DerivedFeature message is added.
 
 ## Identity and source
 
@@ -125,7 +126,8 @@ state interpretation. No feature or hypothesis types are added in this phase.
 ## Validation and testing
 
 `model_v02.py` imports no ROS modules. `validate_metadata`, `validate_time`,
-`validate_quality`, `validate_scalar` and `validate_vector` return structural error
+`validate_quality`, `validate_scalar`, `validate_vector`,
+`validate_reference_descriptor` and `validate_reference` return structural error
 lists and accept the pure model or corresponding generated message objects.
 The v0.1 `model.py` and `validator.py` remain unchanged.
 
@@ -142,3 +144,142 @@ it skips only if rclpy is absent. If ROS exists but v0.2 interfaces are not buil
 or sourced, imports fail rather than reporting a successful skipped check.
 ID uniqueness, source-record resolution, synchronization and physiological
 validity are deliberately outside these stateless validators.
+
+
+## Phase 2: direct and reference payload contracts
+
+- ScalarObservation = direct scalar payload.
+- VectorObservation = direct simultaneous 3-component payload.
+- ReferenceObservation = reference to one immutable native message instance or
+  one producer-defined immutable block.
+
+Use direct payloads when the meaning contract is clear and the direct type can
+represent the sample without loss. Use references when native structure, block
+boundaries or unresolved semantics need preservation. Size alone is not the
+selection criterion. Reference does not imply RAW_SAMPLE: metadata.data_level
+retains its existing meaning, including derived and synthetic data.
+
+ReferenceObservation contains only metadata and a ReferenceDescriptor. The
+latter has exactly scheme, id and profile. All three must be strings, nonempty
+after strip; validation never strips or rewrites identifiers. There is no
+hard-coded registry or restrictive identifier regex. Namespaced, versioned
+contract identifiers such as `ros4hc/reference/in-memory/v1` and
+`ros4hc/profile/native-message/v1` are recommended, not mandatory for validation.
+
+### Identity, source and whole-message selection
+
+- metadata.observation_id identifies the Observation Layer representation.
+- metadata.source identifies the originating stream/message/field.
+- reference.scheme + reference.id identifies the specific immutable native
+  sample/block for retrieval. Consumers must not parse opaque IDs.
+- reference.profile identifies the payload interpretation contract.
+
+Different Observation IDs may share the same reference identity. A topic is not
+an individual sample identity. A scheme specifies ID namespace, resolution
+semantics and lifetime rules; it must not silently retarget an ID to new content.
+Native session/sequence identifiers may participate in scheme-specific IDs, but
+are not additional descriptor fields.
+
+`metadata.source.message_type` is the canonical native ROS type returned by the
+resolution layer. The resolver returns the whole native message, even when an
+Observation targets a field. The reserved `metadata.source.field_path = "$"`
+means the whole native message. Ordinary paths such as `hr`, `vector`, `payload`
+retain their meaning; an empty field path remains invalid. The reference does
+not duplicate source topic/type/field/device/node fields.
+
+### Profiles and information preservation
+
+A profile is an interpretation contract, not a nickname. Future profile
+specifications may fix native schema, target field, ordering, layout,
+unit/calibration status, timestamp mapping, unknown semantics and prohibited
+inference. These remain outside the descriptor. A profile may explicitly state
+that layout, units or encoding semantics are unresolved. Versioned scheme and
+profile definitions must remain stable; firmware and native schema information
+belongs in the native sample/profile/provenance rather than new common fields.
+
+This is not a generic blob converting every payload to uint8[]. Native types are
+preserved, schema/encoding responsibility is not moved to a custom blob decoder,
+and Observation metadata is separated from payload retrieval identity.
+
+### Structural validation versus resolution and measurement quality
+
+validate_reference checks the existing metadata contract and descriptor string
+presence only. It does not look up a resolver, test target existence or actual
+ID uniqueness, retrieve payloads, recognize profiles, verify native schemas or
+certify units/calibration or measurement validity. It is stateless and
+non-mutating; typed pure models and generated message objects are supported.
+
+resolved != measurement VALID; unresolved != measurement INVALID.
+
+Resolution failure must not rewrite metadata.quality.validity. Transport
+sequence gaps, retransmissions and audit information likewise must not be
+inserted into measurement quality_value. Unsupported scheme, not found, expired,
+timeout, access denied, schema mismatch and integrity failure are separate
+resolution concepts. Phase 2 adds no ROS status/provenance message and does not
+claim to detect all these failures.
+
+### In-memory scheme and API
+
+`in_memory_reference.py` implements `ros4hc/reference/in-memory/v1` strictly as
+a ROS-independent contract fixture. Records exist only for the lifetime of one
+resolver instance in one process; there is no persistence, expiry policy,
+network access, cross-instance lookup or thread-safety guarantee.
+
+```python
+from ros4hc_observation_tools.in_memory_reference import InMemoryReferenceResolver
+
+resolver = InMemoryReferenceResolver()
+reference = resolver.register(native_sample, 'example_msgs/msg/Sample')
+# Assign reference to a pure ReferenceObservation, or copy its three strings
+# into a generated ReferenceDescriptor.
+restored = resolver.resolve(reference, observation.metadata.source.message_type)
+```
+
+`register(payload, message_type, *, profile=NATIVE_PROFILE, reference_id=None)`
+returns a pure ReferenceDescriptor. Default IDs use UUID4; callers and consumers
+must treat them as opaque. Explicit recorder-assigned IDs are allowed, but any
+existing ID is rejected, even when the new payload is equal. Registration
+snapshots via deepcopy, and resolve returns another deepcopy, so ordinary native
+objects cannot mutate stored content through input/output aliases. Payloads
+must support faithful deepcopy; arbitrary custom copying hooks are not an
+immutability/security guarantee. No generic byte serialization is performed.
+
+The canonical message_type is asserted by the caller at registration, not
+inferred or verified against ROS introspection. The fixture retains that type
+identifier plus the Python native object. Resolve checks the expected identifier
+from metadata.source.message_type against the stored identifier. It does not
+certify that a caller supplied the correct ROS identifier for an arbitrary
+Python object.
+
+The default profile `ros4hc/profile/native-message/v1` means: retain the whole
+registered native object and all its fields without conversion; `$` selects the
+whole object and ordinary field paths select fields within it. Preserve native
+ordering and block boundaries. Infer no units, calibration, geometry or device
+measurement time. Existing metadata time/unit/quality rules apply; unavailable
+semantics remain unknown. This generic profile does not pin an external schema
+hash or certify firmware/schema compatibility. Stronger profiles may do so.
+
+`resolve(reference, expected_message_type)` returns the native copy or raises
+ReferenceResolutionError with a ResolutionFailure code: invalid_reference,
+unsupported_scheme, not_found, type_mismatch or profile_mismatch. Profile equality
+is checked against registration, not a global registry. No observation metadata
+is read or mutated. A structurally valid descriptor may still fail resolution.
+
+This fixture demonstrates sample recovery, not production durability or clinical
+validity. Production storage, rosbag/database/network/file resolvers, Sensomative
+and PressureMat adapters, Grid/Array, transport provenance messages,
+DerivedFeature, HumanStateHypothesis, RAG and LLM integration remain out of scope.
+
+### Phase 2 tests
+
+`test_reference.py` checks descriptor/interface declarations, build registration,
+whole-message `$`, metadata validation, unknown contracts, non-mutation, all data
+levels, native sample recovery, ID reuse rejection, defensive copying, shared
+references, type/profile mismatch and resolver-local lifetime.
+`test_reference_ros_interfaces.py` tests real generated descriptor/observation
+serialization and native geometry_msgs message recovery. It skips only when
+rclpy is absent; installed ROS with missing/unbuilt new interfaces is a failure.
+Run the existing full unittest discovery command above on Mac. On Humble rebuild
+both observation packages, source the workspace, then run colcon tests and
+inspect all results. A reference-only bag does not itself preserve the native
+payload: recording/resolution guarantees require a separate implementation.

@@ -70,6 +70,19 @@ class VectorObservation:
     frame_id: str = ''
 
 
+@dataclass(frozen=True)
+class ReferenceDescriptor:
+    scheme: str
+    id: str
+    profile: str
+
+
+@dataclass(frozen=True)
+class ReferenceObservation:
+    metadata: ObservationMetadata
+    reference: ReferenceDescriptor
+
+
 def _nonempty(value, name, errors):
     if not isinstance(value, str) or not value.strip():
         errors.append(f'{name} must be nonempty')
@@ -163,3 +176,18 @@ def validate_vector(value):
     if not isinstance(value.frame_id, str):
         errors.append('frame_id must be a string')
     return errors
+
+
+def validate_reference_descriptor(value):
+    """Check presence only; no registry, resolver or identifier normalization."""
+    errors = []
+    for name in ('scheme', 'id', 'profile'):
+        _nonempty(getattr(value, name), name, errors)
+    return errors
+
+
+def validate_reference(value):
+    """Validate structure, never resolution success or measurement validity."""
+    return validate_metadata(value.metadata) + [
+        'reference.' + error for error in validate_reference_descriptor(value.reference)
+    ]

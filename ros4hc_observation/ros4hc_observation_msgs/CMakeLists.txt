@@ -14,6 +14,8 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ObservationMetadata.msg"
   "msg/ScalarObservation.msg"
   "msg/VectorObservation.msg"
+  "msg/ReferenceDescriptor.msg"
+  "msg/ReferenceObservation.msg"
   DEPENDENCIES builtin_interfaces geometry_msgs
 )
 ament_export_dependencies(rosidl_default_runtime)
