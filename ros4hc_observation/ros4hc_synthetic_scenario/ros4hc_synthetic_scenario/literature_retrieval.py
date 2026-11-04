@@ -31,6 +31,8 @@ class LexicalRetrievalBaseline:
                 continue
             provenance = {k: copy.deepcopy(record[k]) for k in
                           ('paper_id', 'chunk_id', 'title', 'authors', 'year', 'doi', 'url')}
+            if 'curation_provenance' in record:
+                provenance['curation'] = copy.deepcopy(record['curation_provenance'])
             digest = hashlib.sha256(json.dumps(record, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
             results.append(dict(paper_id=record['paper_id'], chunk_id=record['chunk_id'],
                                 title=record['title'], provenance=provenance,

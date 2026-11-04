@@ -1,13 +1,16 @@
 from setuptools import setup, find_packages
 setup(name='ros4hc_synthetic_scenario', version='0.1.0', packages=find_packages(),
  data_files=[('share/ament_index/resource_index/packages', ['resource/ros4hc_synthetic_scenario']),
- ('share/ros4hc_synthetic_scenario', ['package.xml', 'README.md', 'PHASE5B.md', 'PHASE5C.md', 'PHASE5D.md', 'PHASE5E.md', 'PHASE5F.md']),
+ ('share/ros4hc_synthetic_scenario', ['package.xml', 'README.md', 'PHASE5B.md', 'PHASE5C.md', 'PHASE5D.md', 'PHASE5E.md', 'PHASE5F.md', 'PHASE5G.md']),
  ('share/ros4hc_synthetic_scenario/configs', ['configs/daily_subject_001.json'])],
- package_data={'ros4hc_synthetic_scenario': ['fixtures/*.jsonl']},
+ package_data={'ros4hc_synthetic_scenario': ['fixtures/*.jsonl', 'templates/*.jsonl', 'templates/*.csv']},
  install_requires=['setuptools'], tests_require=['pytest'], license='GPL-3.0-or-later',
  maintainer='ROS4HC contributors', maintainer_email='kupper.lucas@gmail.com',
  description='24時間の合成活動シナリオ評価データ',
  entry_points={'console_scripts':[
+     'validate_real_literature_corpus = ros4hc_synthetic_scenario.literature_curation:validate_main',
+     'convert_curated_literature = ros4hc_synthetic_scenario.literature_curation:convert_main',
+     'demo_curated_literature = ros4hc_synthetic_scenario.literature_curation:demo_main',
      'demo_local_evidence = ros4hc_synthetic_scenario.evidence_eval:main',
      'validate_literature_corpus = ros4hc_synthetic_scenario.literature_corpus:main',
      'generate_evidence_queries = ros4hc_synthetic_scenario.evidence:main',
