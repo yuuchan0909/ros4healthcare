@@ -16,7 +16,7 @@ import uuid
 from .dataset import LABELS, PERTURBATIONS
 from .sensor_language import CLASSIFICATION_PROMPT, audit_input, output_contract
 from .scoring import score_classification, validate_response
-from .llm_providers import (ExternalProvider, LLMResponse, MockProvider,
+from .llm_providers import (ExternalProvider, LLMResponse, MockProvider, OpenAIProvider,
                             PermanentProviderError, TransientProviderError)
 
 PROMPT_VERSION = 'phase5c-classification-v1'
@@ -244,16 +244,23 @@ def write_scores(path, tasks, expected, responses, manifest):
 def run_experiment(input_dir, output, provider, mode='pilot', conditions=('a', 'b', 'c', 'd'),
                    representations=('structured', 'ja'), dataset='clean', temperature=0.0,
                    seed=42, provider_seed=None, force=False, dry_run=False, max_attempts=2,
-                   retry_delay=1.0, responses_file=None):
+                   retry_delay=1.0, responses_file=None, reasoning_effort=None, max_output_tokens=None):
     if (not conditions or len(set(conditions)) != len(conditions) or not set(conditions) <= set('abcd') or
             not representations or len(set(representations)) != len(representations) or
             not set(representations) <= {'structured', 'ja'} or
-            max_attempts < 1 or max_attempts > 3 or retry_delay < 0 or not 0 <= temperature <= 2):
+            max_attempts < 1 or max_attempts > 3 or retry_delay < 0 or (temperature is not None and not 0 <= temperature <= 2)):
         raise ValueError('実験条件または再試行設定が不正です')
     selected, expected, sources, tasks = load_inputs(input_dir, conditions, representations, dataset, mode, seed)
-    decoding = {'temperature': temperature}
+    decoding = {} if temperature is None else {'temperature': temperature}
     if provider_seed is not None:
         decoding['seed'] = provider_seed
+    if reasoning_effort is not None:
+        decoding['reasoning_effort'] = reasoning_effort
+    if max_output_tokens is not None:
+        decoding['max_output_tokens'] = max_output_tokens
+    if isinstance(provider, OpenAIProvider):
+        # Validate before creating journals or sending any requests, including dry-run.
+        provider._payload(provider.model_identifier(), tasks[0]['request'], decoding)
     identity = {'provider': provider.provider_identifier(), 'model': provider.model_identifier()}
     for task in tasks:
         task['request_key'] = request_key(identity['provider'], identity['model'], task['condition'],
@@ -345,18 +352,21 @@ def run_experiment(input_dir, output, provider, mode='pilot', conditions=('a', '
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Phase 5C分類実験。標準はpilot、実APIアダプタは未構成です')
+    parser = argparse.ArgumentParser(description='Phase 5C分類実験。標準はpilot。openai指定時は実APIへ送信します')
     parser.add_argument('--input-dir', type=Path, required=True, help='Phase 5B出力先')
     parser.add_argument('--output', type=Path, required=True, help='実験結果の保存先（Git外）')
-    parser.add_argument('--provider', choices=('mock', 'external'), default='mock', help='mockは性能評価ではありません')
-    parser.add_argument('--model', help='正確なモデル識別子。externalでは必須')
+    parser.add_argument('--provider', choices=('mock', 'external', 'openai'), default='mock', help='mockは性能評価ではありません')
+    parser.add_argument('--model', help='正確なモデル識別子。external/openaiでは必須')
     parser.add_argument('--external-provider', help='取り込む外部応答のprovider識別子')
     parser.add_argument('--responses-file', type=Path, help='request_key/raw_responseを持つ外部応答JSONL')
     parser.add_argument('--mode', choices=('pilot', 'full'), default='pilot', help='fullは明示指定時のみ')
     parser.add_argument('--dataset', choices=('clean', 'perturbations'), default='clean', help='清浄結果と摂動結果は分離')
     parser.add_argument('--conditions', default='a,b,c,d', help='カンマ区切りの条件')
     parser.add_argument('--representations', default='structured,ja', help='カンマ区切りの表現')
-    parser.add_argument('--temperature', type=float, default=0, help='生成温度')
+    parser.add_argument('--temperature', type=lambda v: None if v == 'api-default' else float(v),
+                        default=argparse.SUPPRESS, help='生成温度。api-defaultで未指定。openai既定は未指定、他は0')
+    parser.add_argument('--reasoning-effort', choices=('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'))
+    parser.add_argument('--max-output-tokens', type=int)
     parser.add_argument('--seed', type=int, default=42, help='pilot選択seed')
     parser.add_argument('--provider-seed', type=int, help='providerが対応する場合の生成seed')
     parser.add_argument('--force', action='store_true', help='保存済み応答も明示的に再取得')
@@ -364,15 +374,24 @@ def main():
     args = parser.parse_args()
     if args.provider == 'external' and (not args.model or not args.external_provider):
         parser.error('externalには--modelと--external-providerが必要です')
+    if args.provider == 'openai' and not args.model:
+        parser.error('openaiには--modelが必要です')
+    if args.provider == 'openai' and args.responses_file:
+        parser.error('openaiでは--responses-fileを使用できません')
+    if args.provider != 'openai' and (args.reasoning_effort is not None or args.max_output_tokens is not None):
+        parser.error('--reasoning-effort/--max-output-tokensはopenai専用です')
     provider = (MockProvider(args.model or 'mock-constant-v1') if args.provider == 'mock' else
+                OpenAIProvider(args.model) if args.provider == 'openai' else
                 ExternalProvider(args.external_provider, args.model))
     try:
         report = run_experiment(args.input_dir, args.output, provider, mode=args.mode,
                                 conditions=tuple(args.conditions.split(',')),
                                 representations=tuple(args.representations.split(',')), dataset=args.dataset,
-                                temperature=args.temperature, seed=args.seed, provider_seed=args.provider_seed,
+                                temperature=getattr(args, 'temperature', None if args.provider == 'openai' else 0.0),
+                                seed=args.seed, provider_seed=args.provider_seed,
+                                reasoning_effort=args.reasoning_effort, max_output_tokens=args.max_output_tokens,
                                 force=args.force, dry_run=args.dry_run, responses_file=args.responses_file)
-    except (ValueError, KeyError, OSError, TypeError):
+    except (ValueError, KeyError, OSError, TypeError, PermanentProviderError):
         parser.error('実験に失敗しました。入力・設定・出力先を確認してください（秘密保護のため例外本文は表示しません）')
     print(f'実験処理完了: {len(report["settings"])}設定 / 保存先: {args.output}')
     print('dry-runまたはmockの結果を実LLM性能と解釈しないでください。費用は取得不可です。')

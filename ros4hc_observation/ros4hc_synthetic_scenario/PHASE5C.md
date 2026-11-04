@@ -2,7 +2,7 @@
 
 ## 研究目的と範囲
 
-Phase 5B入力→LLM応答→厳密な分類検査→決定的採点の配線を準備します。今回の環境調査ではAPIキーとモデル設定は未構成、127.0.0.1:11434のOllamaも利用不可でした。**実LLM接続・推論は行っていません。** mockは固定で判断不能を返す配線確認専用で、研究上の分類性能を表しません。
+Phase 5B入力→LLM応答→厳密な分類検査→決定的採点の配線を準備します。OpenAI Responses API用のlive providerを追加しました。実APIの1件smoke testは接続・出力契約の確認であり研究結果ではありません。**pilot/fullのlive実験は未実施です。** mockは固定で判断不能を返す配線確認専用で、研究上の分類性能を表しません。
 
 RAG、文献検索、GraphRAG、fine-tuning、画像入力、実Polar評価、診断、臨床判断、production HumanStateHypothesisは実装しません。production ObservationとPhase 5A正規生成・正解を変更しません。将来は実モデルでの比較の後に文献grounding比較へ進む予定です。
 
@@ -20,7 +20,7 @@ A/Bにも局所変化という時間情報があります。A対Cを「時間情
 
 標準は `--mode pilot --dataset clean` です。seed=42でIDのハッシュ順から低活動16、軽活動16、歩行様8を選び、高活動6・回復6をすべて含めます。**52窓×8設定=416リクエスト**。全条件・表現で同じ窓を使用し、選択IDを評価者専用manifestに保存します。先頭窓からの単純切出しではありません。
 
-`--mode full` を明示すると清浄288窓×8設定=2304件を構築できます。pilotからfullへ自動遷移しません。将来live adapterを追加した場合も、まずdry-run→1〜2件の接続確認→pilotを検証し、fullは明示指定する運用にしてください。今回はfullの実推論も行いません。
+`--mode full` を明示すると清浄288窓×8設定=2304件を構築できます。pilotからfullへ自動遷移しません。live実行はdry-run→1件の接続確認→別途判断したpilotの順に検証し、fullは明示指定する運用にしてください。今回416件pilot・fullは実行しません。synthetic fixtureの分類性能を臨床性能と解釈しません。
 
 清浄日の分布は198/66/12/6/6/0窓で、強い不均衡と小さい稀少クラスsupportがあります。pilotは層化され、日全体とは異なる分布なので両者のaccuracyを同じ母集団の値と扱えません。連続窓は独立ではなく、値範囲も分離した固定日程fixtureです。パイプライン検証であり一般化の証拠ではありません。
 
@@ -32,7 +32,7 @@ A/Bにも局所変化という時間情報があります。A対Cを「時間情
 
 - `MockProvider`: 固定応答。外部通信なし。
 - `ExternalProvider`: 他環境で得た応答の取り込み用識別子。通信しない。
-- live adapter: 今回は安全に利用可能な接続設定がないため未実装。APIキーを設定するだけで現CLIからlive呼出しできる構成ではありません。
+- `OpenAIProvider`: `POST https://api.openai.com/v1/responses`。標準ライブラリのHTTPS通信、60秒timeout。実行時にだけ`OPENAI_API_KEY`を読み、属性・manifest・ログへ保存しません。redirectは拒否し、adapter内部では再試行しません。
 
 環境変数の値や資格情報を保存しません。provider例外の本文・tracebackは保存せず、エラーカテゴリだけを記録します。任意のusage属性をそのまま転記せず、非負整数のinput_tokens/output_tokens/total_tokensだけを保持します。モデル応答は修復せずrawのまま保存するため、外部応答の取り込み時は資格情報を含まない実際のモデル本文だけを渡してください。
 
@@ -46,7 +46,15 @@ A/Bにも局所変化という時間情報があります。A対Cを「時間情
 
 manifestにはexperiment_id、UTC timestamp、git commit、未コミット実装も識別するモジュールSHA-256、provider、正確なmodel ID、条件、表現、classification、decoding、窓数、request数、prompt version/hash、入力ファイルSHA-256、選択seed/ID、pilot/full、clean/perturbationsを保存します。既存manifestと条件・入力が異なる場合は同じ出力先で再開できません。
 
-標準temperature=0。`--provider-seed` を指定するとdecodingに含めますが、adapterが対応する場合にのみ意味を持ちます。mockは生成seedを使いません。temperature=0やseedでも将来の実API応答が完全に再現するとは主張しません。
+mock/externalのCLI既定temperature=0は維持します。openaiのCLI既定はAPI既定値を使うためtemperature未指定で、manifest/request_keyのdecodingにもtemperatureキーを入れません。`--temperature api-default`でも未指定を明示できます。`--temperature 0`を指定した場合は必ずAPIへ0を送信し、黙って省略・フォールバックしません。Pythonの`run_experiment`既定値0は互換性のため維持し、OpenAIで未指定にする場合は`temperature=None`を渡します。
+
+openaiでは任意の`--reasoning-effort`（APIの`reasoning.effort`）と`--max-output-tokens`をdecodingに記録し、そのまま送ります。モデルごとの対応はAPIが検証し、未対応設定の400は恒久障害として扱います。GPT-6 Lunaはreasoning既定mediumであり、公式仕様はreasoningがnone以外のときtemperatureの除去を求めます。明示reasoningとtemperatureが矛盾すれば送信前に拒否します。temperatureを使う場合は`--reasoning-effort none`を明示してください。openaiはseed非対応のため`--provider-seed`を送信前に拒否します。mock/externalのseed挙動は維持します。temperature=0やseedでも実API応答の完全再現性は保証しません。
+
+inputには既存`request["prompt"]`だけを送ります。評価側のsample_id/subject_id/ground truth/manifest/request_keyは送信しません。`store=false`、tools・履歴・外部検索なしです。output_schemaのコピーを`text.format`のstrict json_schemaとして使います。既存契約のpredicted_stateのoneOfはenumと同じ6値の表示用注記なので、一致を確認してAPI用コピーからだけ除去します。元request・契約とローカルJSON検証は変更しません。raw_responseにはassistantのoutput_text本文だけ、usageには非負整数のinput_tokens/output_tokens/total_tokensだけを返します。refusal/incomplete/不正API envelopeは恒久障害とし、本文・reasoning・APIエラー本文は保存しません。
+
+HTTP 408/409/429/5xxとtimeout/接続障害はTransientProviderError、その他HTTPエラー（認証・権限・不正リクエストを含む）はPermanentProviderErrorです。元例外の本文・連鎖を表示せず固定メッセージに置換します。
+
+仕様参照：[Responses structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)、[GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[GPT-6パラメータ互換性](https://developers.openai.com/api/docs/guides/latest-model)。
 
 ## resume/cacheと再試行
 
@@ -95,4 +103,14 @@ ros2 run ros4hc_synthetic_scenario run_llm_experiment --input-dir /tmp/ros4hc_se
 ros2 run ros4hc_synthetic_scenario run_llm_experiment --input-dir /tmp/ros4hc_sensor_language_phase5b --output /tmp/phase5c_external --provider external --external-provider provider-id --model exact-model-id --responses-file /tmp/external_responses.jsonl
 ```
 
-全自動試験はmockを使用し、実APIには依存しません。実LLMでの接続確認・pilotは安全な設定が準備できてから別途実施します。今回のdry-runは実LLM研究結果ではありません。
+全自動試験はHTTP transportをmockし、課金・ネット接続・実APIキーを必要としません。live接続確認は通常試験後にOpenAIProvider.generateを直接1回だけ呼びます。pilot/fullは未実施です。今回のdry-runや接続確認は実LLM研究結果ではありません。
+
+OpenAIの送信なし構築例（`--model`必須、キー値をコマンドへ埋め込まない）:
+
+```bash
+ros2 run ros4hc_synthetic_scenario run_llm_experiment --input-dir /tmp/ros4hc_sensor_language_phase5b --output /tmp/phase5c_openai_dry --provider openai --model gpt-6-luna --reasoning-effort none --max-output-tokens 128 --dry-run
+```
+
+`--dry-run`を外すと既定で416件が対象になるため、この接続確認では外しません。1件smoke testはrunnerではなくbuild_requestで作った小さいSensor Factsを直接providerへ渡します。APIキーの有無はgenerate時にfail closedで検査します。
+
+2026-11-04の実装確認: Phase 5C関連67件、パッケージ全体pytest 486件、colcon test 486件が成功しました（IncompleteRead回帰テスト追加前）。その後、OPENAI_API_KEYをCodex子プロセスへ継承できる状態を、値を表示せず存在確認で確認しました。build_requestで作った小さいSensor Factsを使い、gpt-6-luna / reasoning_effort=none / max_output_tokens=128 / temperature未指定でlive smoke testを実施しました。初回はTransientProviderErrorとなり、その後の再実行で成功しました。初回のAPI到達有無は不明であり、総APIリクエスト数が1回だったとは断定しません。OpenAIProvider → Responses API → structured outputの経路でvalid JSON responseを取得し、predicted_stateが既存6候補内であることと、usageのinput_tokens/output_tokens/total_tokensを取得できることを確認しました。このsmoke testは接続・配線確認であり、研究性能評価ではありません。Phase 5C pilot/fullは未実施です。

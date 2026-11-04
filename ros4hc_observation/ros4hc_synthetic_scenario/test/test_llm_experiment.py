@@ -292,3 +292,213 @@ def test_paired_scoring_known_differences(inputs, tmp_path):
         assert report['settings']['B-'+rep]['macro_f1_present_classes'] == 1
         assert report['paired_descriptive_differences']['B-A-'+rep]['accuracy'] == pytest.approx(1-16/52)
         assert report['paired_descriptive_differences']['C-B-'+rep]['accuracy'] == 0
+
+
+# OpenAI transport is always replaced: these tests never connect or incur charges.
+@pytest.fixture
+def openai_transport(monkeypatch):
+    from io import BytesIO
+    from ros4hc_synthetic_scenario import llm_providers as providers
+    monkeypatch.setenv('OPENAI_API_KEY', 'unit-test-credential')
+    calls = []
+    envelope = {'status': 'completed', 'output': [
+        {'type': 'reasoning', 'summary': [{'text': 'do not persist reasoning'}]},
+        {'type': 'message', 'role': 'assistant', 'content': [
+            {'type': 'output_text', 'text': '{"predicted_state":"indeterminate"}'}]}],
+        'usage': {'input_tokens': 20, 'output_tokens': 8, 'total_tokens': 28,
+                  'authorization': 'unit-test-credential', 'output_tokens_details': {'reasoning_tokens': 2}}}
+
+    class Transport:
+        failure = None
+
+        def open(self, request, timeout):
+            calls.append((request, timeout))
+            if self.failure is not None:
+                raise self.failure
+            return BytesIO(json.dumps(envelope).encode())
+
+    transport = Transport()
+    monkeypatch.setattr(providers.http, 'build_opener', lambda *args: transport)
+    return providers.OpenAIProvider('gpt-6-luna'), transport, calls, envelope
+
+
+def test_openai_identifier_payload_text_usage(openai_transport):
+    provider, _, calls, _ = openai_transport
+    request = build_request({'hr': {'mean_hr_bpm': 82.0}, 'acc': {'activity_magnitude_mean': 1.0}})
+    before = copy.deepcopy(request)
+    result = provider.generate(request, {'reasoning_effort': 'none', 'temperature': 0, 'max_output_tokens': 128})
+    assert provider.provider_identifier() == 'openai'
+    assert provider.model_identifier() == 'gpt-6-luna'
+    assert 'unit-test-credential' not in repr(provider) + repr(vars(provider))
+    assert result.raw_response == '{"predicted_state":"indeterminate"}'
+    assert result.usage == {'input_tokens': 20, 'output_tokens': 8, 'total_tokens': 28}
+    wire, timeout = calls[0]
+    payload = json.loads(wire.data)
+    assert wire.full_url == 'https://api.openai.com/v1/responses' and wire.method == 'POST'
+    assert timeout == 60
+    assert payload == {'model': 'gpt-6-luna', 'store': False, 'input': request['prompt'],
+                       'text': {'format': {'type': 'json_schema', 'strict': True,
+                                           'name': 'phase5c_classification',
+                                           'schema': {**request['output_schema'], 'properties': {
+                                               'predicted_state': {'type': 'string', 'enum': list(LABELS)}}}}},
+                       'temperature': 0, 'reasoning': {'effort': 'none'}, 'max_output_tokens': 128}
+    assert request == before
+    for token in ('ground_truth', 'sample_id', 'subject_id', 'evaluation', 'unit-test-credential'):
+        assert token not in json.dumps(payload)
+
+
+def test_openai_no_key_fail_closed(openai_transport, monkeypatch):
+    provider, _, calls, _ = openai_transport
+    monkeypatch.delenv('OPENAI_API_KEY')
+    with pytest.raises(PermanentProviderError):
+        provider.generate(build_request({'hr': {}}), {})
+    assert not calls
+
+
+@pytest.mark.parametrize('status', [408, 409, 429, 500, 502, 503, 599, 400, 401, 403, 404, 422, 302])
+def test_openai_http_error_mapping_and_no_body_leak(openai_transport, status, capsys, caplog):
+    from io import BytesIO
+    from urllib.error import HTTPError
+    import traceback
+    provider, transport, _, _ = openai_transport
+    body = BytesIO(b'private-api-error-body unit-test-credential')
+    transport.failure = HTTPError('https://api.openai.com/v1/responses', status,
+                                  'private-api-error-body unit-test-credential', {}, body)
+    expected = TransientProviderError if status in (408, 409, 429) or status >= 500 else PermanentProviderError
+    with pytest.raises(expected) as caught:
+        provider.generate(build_request({'hr': {}}), {})
+    rendered = ''.join(traceback.format_exception(type(caught.value), caught.value, caught.value.__traceback__))
+    output = capsys.readouterr()
+    assert body.closed
+    for secret in ('private-api-error-body', 'unit-test-credential'):
+        assert secret not in rendered + output.out + output.err + caplog.text
+
+
+def test_openai_incomplete_read_is_transient_without_body_leak(openai_transport, monkeypatch, capsys, caplog):
+    from http.client import IncompleteRead
+    from io import BytesIO
+    import traceback
+    from ros4hc_synthetic_scenario import llm_providers as providers
+    provider, _, _, _ = openai_transport
+
+    class TruncatedResponse(BytesIO):
+        def read(self, *args, **kwargs):
+            raise IncompleteRead(b'private-response-body unit-test-credential', 100)
+
+    response = TruncatedResponse()
+
+    class Transport:
+        def open(self, request, timeout):
+            return response
+
+    monkeypatch.setattr(providers.http, 'build_opener', lambda *args: Transport())
+    with pytest.raises(TransientProviderError, match='OpenAI transport failed') as caught:
+        provider.generate(build_request({'hr': {}}), {})
+    assert response.closed
+    rendered = ''.join(traceback.format_exception(type(caught.value), caught.value, caught.value.__traceback__))
+    captured = capsys.readouterr()
+    for forbidden in ('private-response-body', 'unit-test-credential', 'Authorization', 'IncompleteRead'):
+        assert forbidden not in rendered + captured.out + captured.err + caplog.text
+
+
+@pytest.mark.parametrize('failure', [TimeoutError('private transport body'),
+                                   ConnectionError('private transport body')])
+def test_openai_transport_error_mapping(openai_transport, failure):
+    provider, transport, _, _ = openai_transport
+    transport.failure = failure
+    with pytest.raises(TransientProviderError, match='OpenAI transport failed'):
+        provider.generate(build_request({'hr': {}}), {})
+
+
+def test_openai_url_error_mapping(openai_transport):
+    from urllib.error import URLError
+    provider, transport, _, _ = openai_transport
+    transport.failure = URLError('private transport body')
+    with pytest.raises(TransientProviderError):
+        provider.generate(build_request({'hr': {}}), {})
+
+
+@pytest.mark.parametrize('decoding', [{'seed': 1}, {'temperature': float('nan')},
+    {'temperature': 0, 'reasoning_effort': 'medium'}, {'max_output_tokens': 0},
+    {'reasoning_effort': 'invented'}, {'authorization': 'private'}])
+def test_openai_unsupported_decoding_not_silently_dropped(openai_transport, decoding):
+    provider, _, calls, _ = openai_transport
+    with pytest.raises(PermanentProviderError):
+        provider.generate(build_request({'hr': {}}), decoding)
+    assert not calls
+
+
+@pytest.mark.parametrize('metadata', ['sample_id', 'subject_id', 'ground_truth', 'evaluation_metadata'])
+def test_openai_rejects_evaluator_envelope(openai_transport, metadata):
+    provider, _, calls, _ = openai_transport
+    request = build_request({'hr': {}})
+    request[metadata] = 'must-not-send'
+    with pytest.raises(PermanentProviderError):
+        provider.generate(request, {})
+    assert not calls
+
+
+@pytest.mark.parametrize('variant', ['incomplete', 'refusal', 'missing_text', 'credential_echo', 'error'])
+def test_openai_invalid_envelope_never_persisted(openai_transport, variant):
+    provider, _, _, envelope = openai_transport
+    if variant in ('incomplete', 'error'):
+        envelope['status'] = variant
+        envelope['error'] = {'message': 'private-api-error-body'}
+    elif variant == 'refusal':
+        envelope['output'][1]['content'] = [{'type': 'refusal', 'refusal': 'private refusal'}]
+    elif variant == 'missing_text':
+        envelope['output'] = []
+    else:
+        envelope['output'][1]['content'][0]['text'] = 'unit-test-credential'
+    with pytest.raises(PermanentProviderError):
+        provider.generate(build_request({'hr': {}}), {})
+
+
+def test_openai_runner_records_effective_decoding_and_sanitizes(inputs, tmp_path, openai_transport, capsys, caplog):
+    from io import BytesIO
+    from urllib.error import HTTPError
+    provider, transport, calls, _ = openai_transport
+    report = run(inputs, tmp_path/'success', provider, temperature=None,
+                 reasoning_effort='none', max_output_tokens=128)
+    decoding = {'reasoning_effort': 'none', 'max_output_tokens': 128}
+    manifest = json.loads((tmp_path/'success/experiment_manifest.json').read_text())
+    assert manifest['decoding'] == decoding and report['response_record_count'] == 52
+    task = read(tmp_path/'success/requests.jsonl')[0]
+    assert task['request_key'] == request_key('openai', 'gpt-6-luna', 'a', 'structured',
+                                            task['sample_id'], task['request'], decoding)
+    assert all('temperature' not in json.loads(w.data) for w, _ in calls)
+    run(inputs, tmp_path/'success', provider, temperature=None, reasoning_effort='none', max_output_tokens=128)
+    assert len(calls) == 52  # Existing resume path.
+    transport.failure = HTTPError('https://api.openai.com/v1/responses', 401,
+                                  'unit-test-credential', {}, BytesIO(b'private-api-error-body'))
+    run(inputs, tmp_path/'failure', provider, temperature=None)
+    for file in tmp_path.rglob('*'):
+        if file.is_file():
+            for forbidden in ('unit-test-credential', 'private-api-error-body', 'do not persist reasoning'):
+                assert forbidden not in file.read_text()
+    captured = capsys.readouterr()
+    assert 'unit-test-credential' not in captured.out + captured.err + caplog.text
+
+
+def test_openai_cli_requires_model(monkeypatch, tmp_path):
+    from ros4hc_synthetic_scenario.llm_experiment import main
+    monkeypatch.setattr('sys.argv', ['run_llm_experiment', '--provider', 'openai',
+                                    '--input-dir', str(tmp_path), '--output', str(tmp_path/'out')])
+    with pytest.raises(SystemExit) as caught:
+        main()
+    assert caught.value.code == 2
+
+
+@pytest.mark.parametrize('provider,expected', [('openai', None), ('mock', 0.0), ('external', 0.0)])
+def test_cli_provider_temperature_defaults(monkeypatch, tmp_path, provider, expected):
+    from ros4hc_synthetic_scenario import llm_experiment as experiment
+    seen = {}
+    def run_stub(*args, **kwargs):
+        seen.update(kwargs)
+        return {'settings': {}}
+    monkeypatch.setattr(experiment, 'run_experiment', run_stub)
+    monkeypatch.setattr('sys.argv', ['run_llm_experiment', '--provider', provider, '--model', 'exact-model',
+                                    '--external-provider', 'offline', '--dry-run',
+                                    '--input-dir', str(tmp_path), '--output', str(tmp_path/'out')])
+    experiment.main()
+    assert seen['temperature'] == expected
