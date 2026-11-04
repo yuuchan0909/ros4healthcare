@@ -128,3 +128,7 @@ Phase 5BのAは前窓差 `hr_change_bpm` と `trend` を含む現在窓要約（
 ## Phase 5C — LLM分類実験runner
 
 provider非依存のrequest構築、52窓の対応付きpilot、dry-run、逐次保存・再開、限定再試行、外部応答取り込み、設定別採点を追加しました。実API設定がないためlive推論は行っていません。mock/dry-runの値をLLM性能と扱わないでください。詳細は [PHASE5C.md](PHASE5C.md) を参照してください。
+
+## Phase 5D: 未来予測用の軌跡
+
+モデル非依存の観測履歴・未来ターゲット分離、adapter契約、持続予測baselineを追加しました。World Model本体の実装・学習はありません。定義、CLI、時間漏洩と1日fixtureの制約は [PHASE5D.md](PHASE5D.md) を参照してください。
