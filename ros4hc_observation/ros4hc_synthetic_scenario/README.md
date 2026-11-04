@@ -132,3 +132,7 @@ provider非依存のrequest構築、52窓の対応付きpilot、dry-run、逐次
 ## Phase 5D: 未来予測用の軌跡
 
 モデル非依存の観測履歴・未来ターゲット分離、adapter契約、持続予測baselineを追加しました。World Model本体の実装・学習はありません。定義、CLI、時間漏洩と1日fixtureの制約は [PHASE5D.md](PHASE5D.md) を参照してください。
+
+## Phase 5E: 複数日の合成軌跡
+
+4subject×7日の可変日程、分布が重なる観測値、漸近遷移、評価専用event、subject-day単位の分割を追加しました。未学習の持続予測によるデータ特性評価とCLIは [PHASE5E.md](PHASE5E.md) を参照してください。医学的妥当性・学習性能は主張しません。
