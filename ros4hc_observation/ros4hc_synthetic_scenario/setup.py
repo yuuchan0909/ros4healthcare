@@ -1,12 +1,17 @@
 from setuptools import setup, find_packages
 setup(name='ros4hc_synthetic_scenario', version='0.1.0', packages=find_packages(),
  data_files=[('share/ament_index/resource_index/packages', ['resource/ros4hc_synthetic_scenario']),
- ('share/ros4hc_synthetic_scenario', ['package.xml', 'README.md', 'PHASE5B.md', 'PHASE5C.md', 'PHASE5D.md', 'PHASE5E.md']),
+ ('share/ros4hc_synthetic_scenario', ['package.xml', 'README.md', 'PHASE5B.md', 'PHASE5C.md', 'PHASE5D.md', 'PHASE5E.md', 'PHASE5F.md']),
  ('share/ros4hc_synthetic_scenario/configs', ['configs/daily_subject_001.json'])],
+ package_data={'ros4hc_synthetic_scenario': ['fixtures/*.jsonl']},
  install_requires=['setuptools'], tests_require=['pytest'], license='GPL-3.0-or-later',
  maintainer='ROS4HC contributors', maintainer_email='kupper.lucas@gmail.com',
  description='24時間の合成活動シナリオ評価データ',
  entry_points={'console_scripts':[
+     'demo_local_evidence = ros4hc_synthetic_scenario.evidence_eval:main',
+     'validate_literature_corpus = ros4hc_synthetic_scenario.literature_corpus:main',
+     'generate_evidence_queries = ros4hc_synthetic_scenario.evidence:main',
+     'retrieve_local_evidence = ros4hc_synthetic_scenario.literature_retrieval:main',
      'generate_multiday_scenario = ros4hc_synthetic_scenario.multiday:main',
      'generate_multiday_trajectories = ros4hc_synthetic_scenario.multiday_eval:main',
      'generate_daily_scenario = ros4hc_synthetic_scenario.cli:main',
