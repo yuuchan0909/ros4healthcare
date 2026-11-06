@@ -83,12 +83,15 @@ class FallCorpusAdapter:
 
 
 class ScholarlyEvidenceConnector:
-    def __init__(self, corpus_dir=None):
+    def __init__(self, corpus_dir=None, machine_adapter=None):
+        self.machine_adapter = machine_adapter
         self.corpus_dir = Path(corpus_dir) if corpus_dir else Path(__file__).resolve().parents[1]/'literature/real'
 
     def fetch(self, information, request, sensor_facts, user_request):
         name = type(self).__name__
         if not FallCorpusAdapter.accepts(request, user_request):
+            if self.machine_adapter is not None:
+                return self.machine_adapter.fetch(information, request, user_request, name)
             return unavailable(name, information,
                 'Current KB is fall-related only; target mismatch or unsupported user-request grammar. No domain substitution.',
                 knowledge_request=copy.deepcopy(request), target_mismatch_detected=True, kb_target=['falls'])
@@ -129,13 +132,19 @@ class ScholarlyEvidenceConnector:
         supported = {m for e in evidence for m in e.get('applicability', {}).get('measurement', {}).get('supported_query_modalities', [])}
         gaps = sorted(set(query['modalities']) - supported) if query['modalities'] else []
         return dict(connector=name, status='available', reason='Verified local corpus only; no clinical validity claim',
-            missing_information=[], knowledge_request=copy.deepcopy(request), target_mismatch_detected=False,
+            missing_information=[], source_category='curated_verified_evidence',
+            knowledge_request=copy.deepcopy(request), target_mismatch_detected=False,
             data=dict(evidence=evidence, retrieval_mode=mode, measurement_coverage_gaps=gaps,
                       applicability_unassessed=(mode == 'topic_lookup_only'), corpus_papers=len(papers), corpus_chunks=len(chunks)))
 
 
 class ExperimentalMethodConnector:
+    def __init__(self, machine_adapter=None):
+        self.machine_adapter = machine_adapter
+
     def fetch(self, information, request, sensor_facts, user_request):
+        if self.machine_adapter is not None:
+            return self.machine_adapter.fetch(information, request, user_request)
         return unavailable(type(self).__name__, information, 'not_implemented: no curated method knowledge source')
 
 
@@ -149,13 +158,13 @@ class ActionPolicyConnector:
         return unavailable(type(self).__name__, information, 'not_implemented: no approved action policy source')
 
 
-def build_context(user_request, task, sensor_facts=None, corpus_dir=None):
+def build_context(user_request, task, sensor_facts=None, corpus_dir=None, machine_adapter=None):
     task = validate_task(task)
     # Validate even when not routed to a sensor connector, before any data can cross boundaries.
     request = generic_request(task, sensor_facts)
     connectors = {'SensorHistoryConnector': SensorHistoryConnector(),
-        'ScholarlyEvidenceConnector': ScholarlyEvidenceConnector(corpus_dir),
-        'ExperimentalMethodConnector': ExperimentalMethodConnector(),
+        'ScholarlyEvidenceConnector': ScholarlyEvidenceConnector(corpus_dir, machine_adapter),
+        'ExperimentalMethodConnector': ExperimentalMethodConnector(machine_adapter),
         'SensorCapabilityConnector': SensorCapabilityConnector(), 'ActionPolicyConnector': ActionPolicyConnector()}
     results, gaps = [], []
     for entry in route(task):
@@ -163,6 +172,9 @@ def build_context(user_request, task, sensor_facts=None, corpus_dir=None):
         results.append(result)
         if result['status'] == 'unavailable':
             gaps.extend(result['missing_information'])
+        elif result.get('source_category') == 'machine_extracted_knowledge':
+            gaps.extend(result['missing_information'])
+            gaps.append('machine_knowledge_human_verification_pending')
         elif result['connector'] == 'ScholarlyEvidenceConnector':
             gaps.extend('measurement:' + m for m in result['data']['measurement_coverage_gaps'])
             if result['data']['applicability_unassessed']:
