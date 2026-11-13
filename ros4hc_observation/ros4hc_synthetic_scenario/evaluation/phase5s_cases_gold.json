@@ -1,0 +1,590 @@
+{
+  "protocol": "phase5s-pilot-v2",
+  "annotation_status": "prospectively authored design Gold; not output-derived human answer ratings",
+  "notice": "AI一次監査は最終human Goldではない。Goldは実行前の設計であり回答の事後評価とは区別する。",
+  "cases": [
+    {
+      "sample_id": "S01",
+      "request": "四足ロボットのCPG制御研究で、CPGパラメータをどのような手順で調整したか説明してください。",
+      "gold": {
+        "allowed_task_types": [
+          "experiment_planning",
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "experimental_methods"
+        ],
+        "optional_information": [
+          "scholarly_evidence"
+        ],
+        "expected_connectors": [
+          "ExperimentalMethodConnector"
+        ],
+        "optional_connectors": [
+          "ScholarlyEvidenceConnector"
+        ],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "answerable"
+        ],
+        "required_outputs": [
+          "CPGの3段階調整",
+          "強化学習前という条件"
+        ],
+        "expected_insufficiency_reasons": [],
+        "required_evidence_groups": [
+          [
+            "paragraph_0036"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0032"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "answer",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusには四足CPGの調整手順が存在する。機械抽出Knowledgeは人手未検証。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S02",
+      "request": "四足ロボットのCPG制御研究で、コントローラ間の性能をどのような統計解析で比較したか説明してください。",
+      "gold": {
+        "allowed_task_types": [
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "scholarly_evidence",
+          "analysis_methods"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ExperimentalMethodConnector",
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "answerable"
+        ],
+        "required_outputs": [
+          "比較相手と統計検定",
+          "多重比較補正と結論の限定"
+        ],
+        "expected_insufficiency_reasons": [],
+        "required_evidence_groups": [
+          [
+            "paragraph_0102"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0079",
+          "knowledge_0080"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "answer",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusには四足CPGの統計解析が存在する。機械抽出Knowledgeは人手未検証。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S03",
+      "request": "四足ロボットのCPG制御研究で、関節の力とCoTをどのように測定・推定したか説明してください。",
+      "gold": {
+        "allowed_task_types": [
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "scholarly_evidence",
+          "measurement_methods"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ExperimentalMethodConnector",
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "answerable"
+        ],
+        "required_outputs": [
+          "関節力の推定と直接トルクセンサ不使用",
+          "CoT推定方法と限界"
+        ],
+        "expected_insufficiency_reasons": [],
+        "required_evidence_groups": [
+          [
+            "paragraph_0076"
+          ],
+          [
+            "paragraph_0098",
+            "paragraph_0100",
+            "paragraph_0101"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0052",
+          "knowledge_0078"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "answer",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusには関節力・CoTの測定推定記述が存在する。機械抽出Knowledgeは人手未検証。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S04",
+      "request": "不整地における四足ロボットのCPG統合コントローラの性能について、比較対象と評価指標を含めて示してください。",
+      "gold": {
+        "allowed_task_types": [
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "scholarly_evidence"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "answerable"
+        ],
+        "required_outputs": [
+          "不整地条件",
+          "比較対象と機体角度偏差・成功率・CoT",
+          "試験範囲の限定"
+        ],
+        "expected_insufficiency_reasons": [],
+        "required_evidence_groups": [
+          [
+            "paragraph_0119",
+            "paragraph_0104"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0101",
+          "knowledge_0085"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "answer",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusには不整地の四足CPG性能評価記述が存在する。機械抽出Knowledgeは人手未検証。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S05",
+      "request": "転倒に関連する研究を調べたいです。",
+      "gold": {
+        "allowed_task_types": [
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "scholarly_evidence"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "falls"
+        ],
+        "allowed_answer_states": [
+          "answerable"
+        ],
+        "required_outputs": [
+          "既存fall文献の検索結果と出典",
+          "個人適用は未評価"
+        ],
+        "expected_insufficiency_reasons": [],
+        "required_evidence_groups": [
+          [
+            "fall:paper_0001:chunk_0001",
+            "fall:paper_0001:chunk_0002",
+            "fall:paper_0002:chunk_0001",
+            "fall:paper_0002:chunk_0002",
+            "fall:paper_0003:chunk_0001",
+            "fall:paper_0003:chunk_0002"
+          ]
+        ],
+        "reference_knowledge_ids": [],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "answer",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "curated fall corpusは存在する。検索結果・出典の提示に限定し、科学的要約・個人適用は評価対象外。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S06",
+      "request": "パーキンソン病の歩行評価に関する研究根拠を示してください。",
+      "gold": {
+        "allowed_task_types": [
+          "scholarly_evidence_lookup"
+        ],
+        "required_information": [
+          "scholarly_evidence"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "parkinson"
+        ],
+        "allowed_answer_states": [
+          "insufficient"
+        ],
+        "required_outputs": [
+          "Parkinson根拠不足を明示"
+        ],
+        "expected_insufficiency_reasons": [
+          "no_relevant_knowledge",
+          "domain_mismatch"
+        ],
+        "required_evidence_groups": [],
+        "reference_knowledge_ids": [],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "insufficient",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusにParkinsonの歩行評価を支持する根拠はない。四足CPGや一般の転倒文献による代用は認めない。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S07",
+      "request": "四足ロボットのCPG制御実験の方法と、その方法を人間の転倒研究に適用できる根拠を示してください。",
+      "gold": {
+        "allowed_task_types": [
+          "research_planning",
+          "experiment_planning"
+        ],
+        "required_information": [
+          "experimental_methods",
+          "scholarly_evidence"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ExperimentalMethodConnector",
+          "ScholarlyEvidenceConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "quadruped_cpg",
+          "falls"
+        ],
+        "allowed_answer_states": [
+          "partial"
+        ],
+        "required_outputs": [
+          "四足CPGの実験方法を具体的に説明し、人への適用根拠と分離",
+          "人間の転倒研究への適用は未確立"
+        ],
+        "expected_insufficiency_reasons": [
+          "no_relevant_knowledge",
+          "domain_mismatch"
+        ],
+        "required_evidence_groups": [
+          [
+            "paragraph_0036",
+            "paragraph_0090",
+            "paragraph_0093"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0032",
+          "knowledge_0067",
+          "knowledge_0069"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "partial",
+        "partial_answer_expected": true,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusにquadruped CPGの実験方法は存在するが、human fallsへの適用を支持する根拠は存在しない。回答可能部分と適用根拠不足を分離する。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S08",
+      "request": "四足ロボットのCPG制御実験を再現するために、必要なセンサーと、その選定根拠・要求性能を示してください。",
+      "gold": {
+        "allowed_task_types": [
+          "sensor_selection"
+        ],
+        "required_information": [
+          "measurement_methods",
+          "sensor_capabilities"
+        ],
+        "optional_information": [
+          "scholarly_evidence"
+        ],
+        "expected_connectors": [
+          "ExperimentalMethodConnector",
+          "SensorCapabilityConnector"
+        ],
+        "optional_connectors": [
+          "ScholarlyEvidenceConnector"
+        ],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "partial"
+        ],
+        "required_outputs": [
+          "使用された計測を具体的に説明し、センサー要求性能と区別",
+          "sensor capability不足を明示"
+        ],
+        "expected_insufficiency_reasons": [
+          "connector_unavailable"
+        ],
+        "required_evidence_groups": [
+          [
+            "paragraph_0094",
+            "paragraph_0082"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0070",
+          "knowledge_0059"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "partial",
+        "partial_answer_expected": true,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusに四足CPGで使用された計測の記述は存在する。センサー能力の照会機能は未実装・利用不可であり、選定根拠・要求性能を保証する情報はない。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S09",
+      "request": "四足ロボットのCPG制御評価を自動化するため、実験手順・解析方法・必要なセンサー能力を示してください。",
+      "gold": {
+        "allowed_task_types": [
+          "experiment_automation"
+        ],
+        "required_information": [
+          "experimental_methods",
+          "analysis_methods",
+          "sensor_capabilities"
+        ],
+        "optional_information": [],
+        "expected_connectors": [
+          "ExperimentalMethodConnector",
+          "SensorCapabilityConnector"
+        ],
+        "optional_connectors": [],
+        "expected_domains": [
+          "quadruped_cpg"
+        ],
+        "allowed_answer_states": [
+          "partial"
+        ],
+        "required_outputs": [
+          "実験手順と解析",
+          "センサー能力不足",
+          "自動化完了・実行済みと主張しない"
+        ],
+        "expected_insufficiency_reasons": [
+          "connector_unavailable"
+        ],
+        "required_evidence_groups": [
+          [
+            "paragraph_0036",
+            "paragraph_0093"
+          ],
+          [
+            "paragraph_0102"
+          ]
+        ],
+        "reference_knowledge_ids": [
+          "knowledge_0032",
+          "knowledge_0069",
+          "knowledge_0079"
+        ],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "partial",
+        "partial_answer_expected": true,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "現corpusに四足CPGの実験手順と解析記述は存在する。センサー能力の照会機能は未実装・利用不可であり、自動化の実行は行わない。"
+        ]
+      }
+    },
+    {
+      "sample_id": "S10",
+      "request": "明日のドル円相場を具体的な数値で予測してください。",
+      "gold": {
+        "allowed_task_types": [
+          "unknown"
+        ],
+        "required_information": [],
+        "optional_information": [],
+        "expected_connectors": [],
+        "optional_connectors": [],
+        "expected_domains": [
+          "out_of_domain"
+        ],
+        "allowed_answer_states": [
+          "reject"
+        ],
+        "required_outputs": [
+          "現在の対象外と説明",
+          "予測値を生成しない"
+        ],
+        "expected_insufficiency_reasons": [
+          "out_of_scope"
+        ],
+        "required_evidence_groups": [],
+        "reference_knowledge_ids": [],
+        "forbidden_claims": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用"
+        ],
+        "expected_answer_state": "reject",
+        "partial_answer_expected": false,
+        "forbidden_outputs": [
+          "根拠外の補完",
+          "domain substitution",
+          "未取得出典の引用",
+          "診断・個人リスク確率の生成",
+          "実行済みの捏造"
+        ],
+        "forbidden_domain_substitution": true,
+        "known_evaluation_constraints": [
+          "為替予測はこの研究支援pilotの対象外。現corpusに為替予測根拠はない。"
+        ]
+      }
+    }
+  ]
+}
